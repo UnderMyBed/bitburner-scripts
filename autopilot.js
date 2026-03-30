@@ -556,8 +556,10 @@ export async function main(ns) {
                 // The exception is that in BN9, despite high penalties, we're definitely meant to spend hashes to boost hack income
                 if (bestServer && (gain > spendHashesMultThreshold || resetInfo.currentNode == 9)) {
                     // Check whether we should be spending hashes to reduce minimum security
+                    // Each purchase reduces min security by a fixed amount, but cost increases -- diminishing returns.
+                    // Only reduce if still high (>10); below that, the cost/benefit favors Increase Maximum Money.
                     const serverMinSecurity = await getNsDataThroughFile(ns, 'ns.getServerMinSecurityLevel(ns.args[0])', null, [bestServer]);
-                    const shouldReduceMinSecurity = serverMinSecurity > 2; // Each purchase reduces by 2%. Can't go below 1, but not worth the cost to keep going below 2.
+                    const shouldReduceMinSecurity = serverMinSecurity > 10;
                     // If we were already spending hashes to boost a server, check to see if things have changed
                     if (existingSpendHashesProc) {
                         const currentBoostTarget = existingSpendHashesProc.args[1 + existingSpendHashesProc.args.indexOf("--spend-on-server")];
