@@ -937,13 +937,14 @@ export function tail(ns, processId = undefined) {
     const tailedPids = fileContents.length > 1 ? JSON.parse(fileContents) : [];
     if (tailedPids.includes(processId))
         return //ns.tprint(`PID was previously moved ${processId}`);
-    // By default, make all tail windows take up 75% of the width, 25% of the height available
+    // Size windows to 15% width, 15% height. Tile vertically on the right side, just left of the overview panel (~250px from right edge).
     const [width, height] = ns.ui.windowSize();
-    ns.ui.resizeTail(width * 0.60, height * 0.25, processId);
-    // Cascade windows: After each tail, shift the window slightly down and over so that they don't overlap
-    let offsetPct = ((((tailedPids.length % 30.0) / 30.0) + tailedPids.length) % 6.0) / 6.0;
-    ns.print(width, ' ', height, ' ', processId, ' ', offsetPct, ' ', tailedPids)
-    ns.ui.moveTail(offsetPct * (width * 0.25 - 300) + 250, offsetPct * (height * 0.75 - 100) + 50, processId);
+    const tailW = width * 0.15, tailH = height * 0.15;
+    ns.ui.resizeTail(tailW, tailH, processId);
+    const overviewWidth = 250; // Approximate width of the overview panel
+    const x = width - tailW - overviewWidth;
+    const y = (tailedPids.length % Math.floor(height / tailH)) * tailH;
+    ns.ui.moveTail(x, y, processId);
     tailedPids.push(processId);
     ns.write(tailFile, JSON.stringify(tailedPids), 'w');
 }
