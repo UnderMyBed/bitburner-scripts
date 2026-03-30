@@ -65,6 +65,8 @@ export async function main(ns) {
     ownedSourceFiles = await getActiveSourceFiles(ns);
     if (!(10 in ownedSourceFiles))
         return ns.tprint("WARNING: You cannot run sleeve.js until you do BN10.");
+    if (!(4 in ownedSourceFiles))
+        return ns.tprint("WARNING: sleeve.js requires SF4 (Singularity) for full functionality. Complete BN4 first.");
     // Start the main loop
     while (true) {
         try { await mainLoop(ns); }
