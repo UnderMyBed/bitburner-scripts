@@ -335,10 +335,21 @@ export async function main(ns) {
         if (stockFocus) log(ns, '--stock-manipulation-focus - Stock market manipulation is the main priority');
         if (loopingMode) {
             log(ns, '--looping-mode - scheduled remote tasks will loop themselves');
-            // cycleTimingDelay = 0;
-            // queueDelay = 0;
             if (recoveryThreadPadding == 1) recoveryThreadPadding = 10; // Default if not specified (TODO: Improve timings so we don't need so much padding)
             if (stockMode) stockFocus = true; // Need to actively kill scripts that go against stock because they will live forever
+            // Register cleanup handler to kill all looping scripts when daemon shuts down.
+            // Without this, looping scripts persist after daemon restart, consuming all RAM.
+            ns.atExit(() => {
+                try {
+                    const toolNames = [getTool("hack").name, getTool("grow").name, getTool("weak").name];
+                    for (const hostname of allHostNames) {
+                        for (const proc of ns.ps(hostname)) {
+                            if (toolNames.includes(proc.filename) && proc.args.length >= 6 && proc.args[proc.args.length - 1] == 1)
+                                ns.kill(proc.pid);
+                        }
+                    }
+                } catch { /* Best effort cleanup */ }
+            });
         }
         if (xpOnly && !options['no-share']) {
             options['no-share'] = true;
@@ -2128,7 +2139,6 @@ export async function main(ns) {
             else if (toolName == strHack && 1 == (process.args.length > 5 ? process.args[5] : 0))
                 loopsHackThreadsByServer[process.args[0]] -= process.threads;
         });
-        loopsByServer_Grow
     }
 
     /** Helper to kill a list of process ids
