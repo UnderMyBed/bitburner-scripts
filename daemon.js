@@ -53,7 +53,7 @@ const argsSchema = [
     ['initial-max-targets', undefined], // Initial number of servers to target / prep (default is 2 + 1 for every 500 TB of RAM on the network)
     ['cycle-timing-delay', 4000], // (ms) Length of a hack cycle. The smaller this is, the more batches (HWGW) we can schedule before the first cycle fires, but the greater the chance of a misfire
     ['queue-delay', 1000], // (ms) Delay before the first script begins, to give time for all scripts to be scheduled
-    ['recovery-thread-padding', 1], // Multiply the number of grow/weaken threads needed by this amount to automatically recover more quickly from misfires.
+    ['recovery-thread-padding', 2], // Multiply the number of grow/weaken threads needed by this amount to automatically recover more quickly from misfires.
     ['max-batches', 40], // Maximum overlapping cycles to schedule in advance. Note that once scheduled, we must wait for all batches to complete before we can schedule mor
     ['max-steal-percentage', 0.75], // Don't steal more than this in case something goes wrong with timing or scheduling, it's hard to recover frome
 
@@ -63,7 +63,7 @@ const argsSchema = [
     ['i', false], // Farm intelligence with manual hack.
 
     // Debugging flags
-    ['silent-misfires', false], // Instruct remote scripts not to alert when they misfire
+    ['silent-misfires', true], // Instruct remote scripts not to alert when they misfire (misfires are auto-recovered via recovery-thread-padding)
     ['no-tail-windows', false], // Set to true to prevent the default behaviour of opening a tail window for certain launched scripts. (Doesn't affect scripts that open their own tail windows)
     ['h', false], // Do nothing but hack, no prepping (drains servers to 0 money, if you want to do that for some reason)
     ['hack-only', false], // Same as above
