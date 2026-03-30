@@ -41,6 +41,8 @@ export async function main(ns) {
     let currentValidMovesTurn = 0; //The turn count that the currentValidMoves is valid for
     let turn = 0;
     let START = performance.now();
+    let opponentIndex = 0;
+    let boardSize = 9;
     // Global variables initialized in this way get strong typing throughout
     let board = (/**@returns{string[]}*/() => undefined)(); // The current board state
     let currentValidMoves = (/**@returns{number[][]}*/() => undefined)(); //All valid moves for this turn
@@ -97,7 +99,7 @@ export async function main(ns) {
 
         logtime = runOptions.logtime;
         runOnce = runOptions.runOnce;
-        const boardSize = runOptions['board-size'];
+        boardSize = runOptions['board-size'];
 
         const sourceFiles = await getActiveSourceFiles(ns, true);
         // Enable cheats if we have SF14.2 or higher (unless the user disabled cheats).
@@ -360,7 +362,6 @@ export async function main(ns) {
     /** @param {NS} ns
      * @param {{ type:"move"|"pass"|"gameOver"; x:number; y:number;}} gameInfo
      */
-    let opponentIndex = 0;
     function checkNewGame(ns, gameInfo) {
         if (gameInfo.type === "gameOver") {
             if (runOnce) ns.exit()
