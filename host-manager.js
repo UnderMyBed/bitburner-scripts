@@ -22,7 +22,7 @@ const argsSchema = [
     ['interval', 10000], // Update interval (in milliseconds) when running continuously
     ['min-ram-exponent', 5], // the minimum amount of ram to purchase
     ['utilization-trigger', 0.80], // the percentage utilization that will trigger an attempted purchase
-    ['absolute-reserve', null], // Set to reserve a fixed amount of money. Defaults to the contents of reserve.txt on home
+    ['absolute-reserve', -1], // Set to reserve a fixed amount of money. Defaults to the contents of reserve.txt on home
     ['reserve-percent', 0.9], // Set to reserve a percentage of home money
     ['reserve-by-time', false], // Experimental exponential decay by time in the run. Starts willing to spend lots of money, falls off over time.
     ['reserve-by-time-decay-factor', 0.2], // Controls how quickly our % reserve increases from --reserve-percent to 100% over time. For example, if --reserve-percent is set to 0.05 (allow spending 95% of money), time to reduce spending to ~25% of money is ~6hrs at 0.2, ~4hrs at 0.3, ~2hrs at 0.5
@@ -88,7 +88,7 @@ export async function main(ns) {
     if (!keepRunning)
         log(ns, `host-manager will run once. Run with argument "-c" to run continuously.`)
     do {
-        absReservedMoney = options['absolute-reserve'] != null ? Number(options['absolute-reserve']) : Number(ns.read("reserve.txt") || 0);
+        absReservedMoney = options['absolute-reserve'] != -1 ? Number(options['absolute-reserve']) : Number(ns.read("reserve.txt") || 0);
         await tryToBuyBestServerPossible(ns);
         if (keepRunning)
             await ns.sleep(options['interval']);

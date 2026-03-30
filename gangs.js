@@ -55,9 +55,9 @@ const argsSchema = [
     ['ascend-multi-threshold-spacing', 0.05], // Members will space their acention multis by this amount to ensure they are ascending at different rates
     // Note: given the above two defaults, members would ascend at multis [1.6, 1.55, 1.50, ..., 1.1, 1.05] once you have 12 members.
     ['min-training-ticks', 10], // Require this many ticks of training after ascending or recruiting to rebuild stats
-    ['reserve', null], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
-    ['augmentations-budget', null], // Percentage of non-reserved cash to spend per tick on permanent member upgrades (If not specified, uses defaultMaxSpendPerTickPermanentEquipment)
-    ['equipment-budget', null], // Percentage of non-reserved cash to spend per tick on permanent member upgrades (If not specified, uses defaultMaxSpendPerTickTransientEquipment)
+    ['reserve', -1], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
+    ['augmentations-budget', -1], // Percentage of non-reserved cash to spend per tick on permanent member upgrades (If not specified, uses defaultMaxSpendPerTickPermanentEquipment)
+    ['equipment-budget', -1], // Percentage of non-reserved cash to spend per tick on permanent member upgrades (If not specified, uses defaultMaxSpendPerTickTransientEquipment)
     ['money-focus', false], // Always optimize gang crimes for maximum monetary gain. Is otherwise balanced.
     ['reputation-focus', false], // Always optimize gang crimes for maximum reputation gain. Is otherwise balanced.
 ];
@@ -431,10 +431,10 @@ async function tryUpgradeMembers(ns, dictMembers) {
     // Upgrade members, spending no more than x% of our money per tick (and respecting the global reseve)
     const purchaseOrder = [];
     const playerData = await getNsDataThroughFile(ns, 'ns.getPlayer()');
-    const homeMoney = playerData.money - (options['reserve'] != null ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
+    const homeMoney = playerData.money - (options['reserve'] != -1 ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
     const maxBudget = 0.99; // Note: To avoid rounding issues and micro-spend race-conditions, only allow budgeting up to 99% of money per tick
-    let budget = Math.min(maxBudget, (options['equipment-budget'] || defaultMaxSpendPerTickTransientEquipment)) * homeMoney;
-    let augBudget = Math.min(maxBudget, (options['augmentations-budget'] || defaultMaxSpendPerTickPermanentEquipment)) * homeMoney;
+    let budget = Math.min(maxBudget, (options['equipment-budget'] != -1 ? options['equipment-budget'] : defaultMaxSpendPerTickTransientEquipment)) * homeMoney;
+    let augBudget = Math.min(maxBudget, (options['augmentations-budget'] != -1 ? options['augmentations-budget'] : defaultMaxSpendPerTickPermanentEquipment)) * homeMoney;
     // Hack: Default aug budget is cut by 1/100 in a few situations (TODO: Add more, like when BitnodeMults are such that gang income is severely nerfed)
     if (!is4sBought)
         is4sBought = await getNsDataThroughFile(ns, `ns.stock.has4SDataTixApi()`);

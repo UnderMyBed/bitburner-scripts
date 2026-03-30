@@ -2,8 +2,8 @@ import { log, getConfiguration, getNsDataThroughFile } from './helpers.js'
 
 const argsSchema = [
     ['clear', false], // If set to true, will clear whatever layout is already there and create a new one
-    ['force-width', null], // Force the layout less than or equal to the specified width
-    ['force-height', null], // Force the layout less than or equal to the specified height
+    ['force-width', -1], // Force the layout less than or equal to the specified width
+    ['force-height', -1], // Force the layout less than or equal to the specified height
 ];
 export function autocomplete(data, args) {
     data.flags(argsSchema);
@@ -23,8 +23,8 @@ export async function main(ns) {
     }
 
     // Find the saved layout that best matches
-    const height = options['force-height'] || await getNsDataThroughFile(ns, 'ns.stanek.giftHeight()');
-    const width = options['force-width'] || await getNsDataThroughFile(ns, 'ns.stanek.giftWidth()');
+    const height = options['force-height'] != -1 ? options['force-height'] : await getNsDataThroughFile(ns, 'ns.stanek.giftHeight()');
+    const width = options['force-width'] != -1 ? options['force-width'] : await getNsDataThroughFile(ns, 'ns.stanek.giftWidth()');
     const usableLayouts = layouts.filter(l => l.height <= height && l.width <= width);
     const bestLayout = usableLayouts.sort((l1, l2) => // Use the layout with the least amount of unused rows/columns
         (height - l1.height + width - l1.width) - (height - l2.height + width - l2.width))[0];

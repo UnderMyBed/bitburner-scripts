@@ -40,14 +40,14 @@ const argsSchema = [ // The set of all command line arguments
     ['all', false], // Display all factions (spoilers), not just accessible factions
     ['a', false], // Flag-style alias for --all.
     ['hide-locked-factions', false], // Don't show factions that we don't currently have access to
-    ['verbose', null], // Print the terminal as well as the script logs. If left null, this defaults to true in code now, but can be disabled with an explicit `--verbose false`
+    ['verbose', true], // Print the terminal as well as the script logs. Can be disabled with an explicit `--verbose false`
     ['v', false], // (Kept for backwards compatilily) this was an alias flag for setting --verbose to true when it previously defaulted to false.
     ['ignore-player-data', false], // Display stats for all factions and augs, despite what we already have (kind of a "mock" mode)
     ['i', false], // Flag alias for --ignore-player-data
     // By default, we ignore "Shadows of Anarchy" because they are tied to infiltration (manual action) and their aug prices don't follow normal conventions
     ['ignore-faction', ["Shadows of Anarchy"]], // Factions to omit from all data, stats, and calcs, (e.g.) if you do not want to purchase augs from them, or do not want to see them because they are impractical to join at this time
     ['after-faction', []], // Pretend we were to buy all augs offered by these factions. Show us only what remains.
-    ['force-join', null], // Always join these factions if we have an invite (useful to force join a gang faction)
+    ['force-join', []], // Always join these factions if we have an invite (useful to force join a gang faction)
     // Augmentation purchasing-related options. Controls what augmentations are included in cost calculations, and optionally purchased
     ['priority-aug', []], // If accessible, every effort is made not to drop these from the sort purchase order.
     ['omit-aug', []], // Augmentations to exclude from the augmentation list (e.g. because we do not wish to purchase it yet)
@@ -61,7 +61,7 @@ const argsSchema = [ // The set of all command line arguments
     ['show-unavailable-aug-purchase-order', false], // Set to true to print the list of unavailable augmentations in optimal purchase order. (Note: Always displayed when no augs are available)
     ['show-all-purchase-lists', false], // Set to true to re-print the list of augmentations each time it changes
     // Display-related options - controls what information is displayed in the final "cumulative stats by faction" table
-    ['sort', null], // What stat is the table of total faction stats sorted by. Defaults to your first --stat-desired
+    ['sort', ''], // What stat is the table of total faction stats sorted by. Defaults to your first --stat-desired
     ['hide-stat', []], // Stats to exclude from the final table (partial matching works)
     ['unique', false], // When displaying cumulative stats by faction, only include augs not given by a faction further up the list
     ['u', false], // Flag alias for --unique
@@ -107,7 +107,7 @@ export async function main(ns) {
     ownedAugmentations = [], simulatedOwnedAugmentations = [], effectiveSourceFiles = {}, allAugStats = [], priorityAugs = [], purchaseableAugs = [];
     factionData = {}, augmentationData = {}, bitNodeMults = {};
 
-    printToTerminal = (options.v || options.verbose === true || options.verbose === null) && !options['join-only'];
+    printToTerminal = (options.v || options.verbose === true) && !options['join-only'];
     ignorePlayerData = options.i || options['ignore-player-data'];
     const afterFactions = options['after-faction'].map(f => f.replaceAll("_", " "));
     const omitAugs = options['omit-aug'].map(f => f.replaceAll("_", " "));
@@ -179,9 +179,9 @@ export async function main(ns) {
         log(ns, 'INFO: Skipping joining available factions due to the --ignore-player-data flag set.');
     else {
         log(ns, 'Joining available factions...');
-        let forceJoinFactions = options['force-join'] || [];
+        let forceJoinFactions = options['force-join'];
         // If the user didn't set the 'force-join' option, there are some defaults we should apply
-        if (!forceJoinFactions) {
+        if (forceJoinFactions.length === 0) {
             // If we're in BN 10, we can purchase special Sleeve-related things from the Covenant, so we should always join it
             if (bitNode == 10)
                 forceJoinFactions.push("The Covenant");

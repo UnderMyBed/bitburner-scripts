@@ -16,14 +16,14 @@ const argsSchema = [ // The set of all command line arguments
     ['interval', 2000], // Wake up this often (milliseconds) to check on things
     ['interval-check-scripts', 10000], // Get a listing of all running processes on home this frequently
     ['high-hack-threshold', 8000], // Once hack level reaches this, we start daemon in high-performance hacking mode
-    ['enable-bladeburner', null], // (Deprecated) Bladeburner is now always enabled if it's available. Use '--disable-bladeburner' to explicitly turn off
+    ['enable-bladeburner', false], // (Deprecated) Bladeburner is now always enabled if it's available. Use '--disable-bladeburner' to explicitly turn off
     ['disable-bladeburner', false], // This will instruct daemon.js not to run the bladeburner.js, even if bladeburner is available.
     ['wait-for-4s-threshold', 0.9], // Set to 0 to not reset until we have 4S. If money is above this ratio of the 4S Tix API cost, don't reset until we buy it.
     ['disable-wait-for-4s', false], // If true, will doesn't wait for the 4S Tix API to be acquired under any circumstantes
     ['disable-rush-gangs', false], // Set to true to disable focusing work-for-faction on Karma until gangs are unlocked
     ['disable-casino', false], // Set to true to disable running the casino.js script automatically
     ['spend-hashes-on-server-hacking-threshold', 0.1], // Threshold for how good hacking multipliers must be to merit spending hashes for boosting hack income. Set to a large number to disable this entirely.
-    ['on-completion-script', null], // Spawn this script when we defeat the bitnode
+    ['on-completion-script', ''], // Spawn this script when we defeat the bitnode
     ['on-completion-script-args', []], // Optional args to pass to the script when we defeat the bitnode
     ['xp-mode-interval-minutes', 55], // Every time this many minutes has elapsed, toggle daemon.js to runing in --xp-only mode, which prioritizes earning hack-exp rather than money
     ['xp-mode-duration-minutes', 5], // The number of minutes to keep daemon.js in --xp-only mode before switching back to normal money-earning mode.

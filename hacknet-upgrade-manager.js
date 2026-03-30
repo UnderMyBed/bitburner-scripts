@@ -3,13 +3,13 @@ import { getConfiguration, disableLogs, formatDuration, formatMoney, } from './h
 let haveHacknetServers = true; // Cached flag after detecting whether we do (or don't) have hacknet servers
 const argsSchema = [
     ['max-payoff-time', '1h'], // Controls how far to upgrade hacknets. Can be a number of seconds, or an expression of minutes/hours (e.g. '123m', '4h')
-    ['time', null], // alias for max-payoff-time
+    ['time', -1], // alias for max-payoff-time
     ['c', false], // Set to true to run continuously, otherwise, it runs once
     ['continuous', false],
     ['interval', 1000], // Rate at which the program purchases upgrades when running continuously
     ['max-spend', Number.MAX_VALUE], // The maximum amount of money to spend on upgrades
     ['toast', false], // Set to true to toast purchases
-    ['reserve', null], // Reserve this much cash (defaults to contents of reserve.txt if not specified)
+    ['reserve', -1], // Reserve this much cash (defaults to contents of reserve.txt if not specified)
 
 ];
 
@@ -25,7 +25,7 @@ export async function main(ns) {
     const continuous = options.c || options.continuous;
     const interval = options.interval;
     let maxSpend = options["max-spend"];
-    let maxPayoffTime = options['time'] || options['max-payoff-time'];
+    let maxPayoffTime = options['time'] != -1 ? options['time'] : options['max-payoff-time'];
     // A little string parsing to be more user friendly
     if (maxPayoffTime && String(maxPayoffTime).endsWith("m"))
         maxPayoffTime = Number.parseFloat(maxPayoffTime.replace("m", "")) * 60
@@ -136,7 +136,7 @@ export function upgradeHacknet(ns, maxSpend, maxPayoffTimeSeconds = 3600 /* 3600
         setStatus(ns, `The next best purchase would be ${strPurchase}, but the ${strPayoff} is worse than the limit (${formatDuration(1000 * maxPayoffTimeSeconds)})`);
         return false; // Shut-down. As long as maxPayoffTimeSeconds doesn't change, we will never purchase another upgrade
     }
-    const reserve = (options['reserve'] != null ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
+    const reserve = (options['reserve'] != -1 ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
     const playerMoney = ns.getPlayer().money;
     if (cost > playerMoney - reserve) {
         setStatus(ns, `The next best purchase would be ${strPurchase}, but the cost exceeds the our ` +

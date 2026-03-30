@@ -3,13 +3,13 @@ import { log, getConfiguration, instanceCount, disableLogs, getActiveSourceFiles
 const argsSchema = [
     ['min-shock-recovery', 97], // Minimum shock recovery before attempting to train or do crime (Set to 100 to disable, 0 to recover fully)
     ['shock-recovery', 0.05], // Set to a number between 0 and 1 to devote that ratio of time to periodic shock recovery (until shock is at 0)
-    ['crime', null], // If specified, sleeves will perform only this crime regardless of stats
+    ['crime', ''], // If specified, sleeves will perform only this crime regardless of stats
     ['homicide-chance-threshold', 0.5], // Sleeves on crime will automatically start homicide once their chance of success exceeds this ratio
     ['disable-gang-homicide-priority', false], // By default, sleeves will do homicide to farm Karma until we're in a gang. Set this flag to disable this priority.
     ['aug-budget', 0.1], // Spend up to this much of current cash on augs per tick (Default is high, because these are permanent for the rest of the BN)
     ['buy-cooldown', 60 * 1000], // Must wait this may milliseconds before buying more augs for a sleeve
     ['min-aug-batch', 20], // Must be able to afford at least this many augs before we pull the trigger (or fewer if buying all remaining augs)
-    ['reserve', null], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
+    ['reserve', -1], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
     ['disable-follow-player', false], // Set to true to disable having Sleeve 0 work for the same faction/company as the player to boost reputation gain rates
     ['disable-training', false], // Set to true to disable having sleeves workout at the gym (costs money)
     ['train-to-strength', 105], // Sleeves will go to the gym until they reach this much Str
@@ -18,7 +18,7 @@ const argsSchema = [
     ['train-to-agility', 70], // Sleeves will go to the gym until they reach this much Agi
     ['study-to-hacking', 25], // Sleeves will go to university until they reach this much Hak
     ['study-to-charisma', 25], // Sleeves will go to university until they reach this much Cha
-    ['training-reserve', null], // Defaults to global reserve.txt. Can be set to a negative number to allow debt. Sleeves will not train if money is below this amount.
+    ['training-reserve', -1], // Defaults to global reserve.txt. Can be set to a negative number to allow debt. Sleeves will not train if money is below this amount.
     ['training-cap-seconds', 2 * 60 * 60 /* 2 hours */], // Time since the start of the bitnode after which we will no longer attempt to train sleeves to their target "train-to" settings
     ['disable-spending-hashes-for-gym-upgrades', false], // Set to true to disable spending hashes on gym upgrades when training up sleeves.
     ['disable-spending-hashes-for-study-upgrades', false], // Set to true to disable spending hashes on study upgrades when smarting up sleeves.
@@ -140,7 +140,7 @@ async function mainLoop(ns) {
     const playerWorkInfo = await getCurrentWorkInfo(ns);
     if (!playerInGang) playerInGang = !(2 in ownedSourceFiles) ? false : await getNsDataThroughFile(ns, 'ns.gang.inGang()');
     let globalReserve = Number(ns.read("reserve.txt") || 0);
-    let budget = (playerInfo.money - (options['reserve'] || globalReserve)) * options['aug-budget'];
+    let budget = (playerInfo.money - (options['reserve'] != -1 ? options['reserve'] : globalReserve)) * options['aug-budget'];
     // Estimate the cost of sleeves training over the next time interval to see if (ignoring income) we would drop below our reserve.
     const costByNextLoop = interval / 1000 * task.filter(t => t.startsWith("train")).length * 12000; // TODO: Training cost/sec seems to be a bug. Should be 1/5 this ($2400/sec)
     // Get time in current bitnode (to cap how long we'll train sleeves)
@@ -149,7 +149,7 @@ async function mainLoop(ns) {
         // To avoid training forever when mults are crippling, stop training if we've been in the bitnode a certain amount of time
         (options['training-cap-seconds'] * 1000 > timeInBitnode) &&
         // Don't train if we have no money (unless player has given permission to train into debt)
-        (playerInfo.money - costByNextLoop) > (options['training-reserve'] ||
+        (playerInfo.money - costByNextLoop) > (options['training-reserve'] != -1 ? options['training-reserve'] :
             (promptedForTrainingBudget ? ns.read(trainingReserveFile) : undefined) || globalReserve);
     // If any sleeve is training at the gym, see if we can purchase a gym upgrade to help them
     if (canTrain && task.some(t => t?.startsWith("train")) && !options['disable-spending-hashes-for-gym-upgrades'])
@@ -417,7 +417,7 @@ async function promptForTrainingBudget(ns) {
     if (promptedForTrainingBudget) return;
     promptedForTrainingBudget = true;
     await ns.write(trainingReserveFile, '', "w");
-    if (options['training-reserve'] === null && !options['disable-training'])
+    if (options['training-reserve'] === -1 && !options['disable-training'])
         await runCommand(ns, `let ans = await ns.prompt("Do you want to let sleeves put you in debt while they train?"); \n` +
             `await ns.write("${trainingReserveFile}", ans ? '-1E100' : '0', "w")`, '/Temp/sleeves-training-reserve-prompt.js');
 }

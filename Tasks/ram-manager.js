@@ -3,7 +3,7 @@ import { formatMoney, formatRam, getConfiguration, getNsDataThroughFile, log } f
 const max_ram = 2 ** 30;
 const argsSchema = [
     ['budget', 0.2], // Spend up to this much of current cash on ram upgrades per tick (Default is high, because these are permanent for the rest of the BN)
-    ['reserve', null], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
+    ['reserve', -1], // Reserve this much cash before determining spending budgets (defaults to contents of reserve.txt if not specified)
 ];
 
 export function autocomplete(data, _) {
@@ -15,7 +15,7 @@ export function autocomplete(data, _) {
 export async function main(ns) {
     const options = getConfiguration(ns, argsSchema);
     if (!options) return; // Invalid options, or ran in --help mode.
-    const reserve = (options['reserve'] != null ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
+    const reserve = (options['reserve'] != -1 ? options['reserve'] : Number(ns.read("reserve.txt") || 0));
     const money = await getNsDataThroughFile(ns, `ns.getServerMoneyAvailable(ns.args[0])`, null, ["home"]);
     let spendable = Math.min(money - reserve, money * options.budget);
     if (isNaN(spendable))

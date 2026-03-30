@@ -11,7 +11,7 @@ const argsSchema = [
     ['enable-logging', false], // Set to true to pop up a tail window and generate logs.
     ['kill-all-scripts', false], // Set to true to kill all running scripts before running.
     ['no-deleting-remote-files', false], // By default, if --kill-all-scripts, we will also remove remote files to speed up save/reload
-    ['on-completion-script', null], // Spawn this script when max-charges is reached
+    ['on-completion-script', ''], // Spawn this script when max-charges is reached
     ['on-completion-script-args', []], // Optional args to pass to the script when launched
 ];
 export function autocomplete(data, args) {

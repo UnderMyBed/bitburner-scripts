@@ -7,9 +7,9 @@ const argsSchema = [
     ['liquidate', false], // Long-form of above flag
     ['interval', 50], // (milliseonds) Interval at which the program wakes up to spends hashes
     ['spend-on', [sellForMoney]], // One or more actions to spend hashes on.
-    ['spend-on-server', null], // The server to boost, for spend options that take a server argument: 'Reduce Minimum Security' and 'Increase Maximum Money'
+    ['spend-on-server', ''], // The server to boost, for spend options that take a server argument: 'Reduce Minimum Security' and 'Increase Maximum Money'
     ['no-capacity-upgrades', false], // By default, we will attempt to upgrade the hacknet node capacity if we cannot afford any purchases. Set to true to disable this.
-    ['reserve', null], // The amount of player money to leave unpent when considering buying capacity upgrades (defaults to the amount in reserve.txt on home)
+    ['reserve', -1], // The amount of player money to leave unpent when considering buying capacity upgrades (defaults to the amount in reserve.txt on home)
     ['ignore-reserve-if-upgrade-cost-less-than-pct', 0.01], // Hack to purchase capacity upgrades regardless of the curent global reserve if they cost less than this fraction of player money
     ['reserve-buffer', 1], // To avoid wasting hashes, spend if would be within this many hashes of our max capacity on the next tick.
     ['max-purchases-per-loop', 10000], // When we're producing hashes faster than we can spend them, this keeps things from getting hung up
@@ -39,7 +39,7 @@ export async function main(ns) {
     const liquidate = options.l || options.liquidate;
     const interval = options.interval;
     const toBuy = options['spend-on'].map(s => s.replaceAll("_", " "));
-    const spendOnServer = options['spend-on-server']?.replaceAll("_", " ") ?? undefined;
+    const spendOnServer = options['spend-on-server'] != '' ? options['spend-on-server'].replaceAll("_", " ") : undefined;
     const maxPurchasesPerLoop = options['max-purchases-per-loop'];
     // Validate arguments
     if (toBuy.length == 0)
@@ -170,7 +170,7 @@ export async function main(ns) {
                         lowestIndex = i, lowestLevel = ns.hacknet.getNodeStats(i).hashCapacity;
                 const nextCacheUpgradeCost = lowestIndex == null ? Number.POSITIVE_INFINITY : ns.hacknet.getCacheUpgradeCost(lowestIndex, 1);
                 const nextNodeCost = ns.hacknet.getPurchaseNodeCost();
-                const reservedMoney = options['reserve'] ?? Number(ns.read("reserve.txt") || 0);
+                const reservedMoney = options['reserve'] != -1 ? options['reserve'] : Number(ns.read("reserve.txt") || 0);
                 const playerMoney = ns.getServerMoneyAvailable('home');
                 const spendableMoney = Math.max(0, playerMoney - reservedMoney,
                     // Hack: Because managing global reserve is tricky. We tend to always want to purchase cheap upgrades
