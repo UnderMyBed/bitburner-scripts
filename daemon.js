@@ -1079,13 +1079,17 @@ export async function main(ns) {
         dictServerMinSecurityLevels = await getServersDict(ns, 'getServerMinSecurityLevel');
         dictServerMaxMoney = await getServersDict(ns, 'getServerMaxMoney');
         // Get the information about the relative profitability of each server (affects targetting order)
-        const pid = await exec(ns, getFilePath('analyze-hack.js'), null, null, '--all', '--silent');
-        await waitForProcessToComplete_Custom(ns, getHomeProcIsAlive(ns), pid);
-        const analyzeHackResult = dictServerProfitInfo = ns.read('/Temp/analyze-hack.txt');
-        if (!analyzeHackResult)
-            log(ns, "WARNING: analyze-hack info unavailable. Will use fallback approach.");
-        else
-            dictServerProfitInfo = Object.fromEntries(JSON.parse(analyzeHackResult).map(s => [s.hostname, s]));
+        try {
+            const pid = await exec(ns, getFilePath('analyze-hack.js'), null, null, '--all', '--silent');
+            await waitForProcessToComplete_Custom(ns, getHomeProcIsAlive(ns), pid);
+            const analyzeHackResult = ns.read('/Temp/analyze-hack.txt');
+            if (!analyzeHackResult)
+                log(ns, "WARNING: analyze-hack info unavailable. Will use fallback approach (server max money).");
+            else
+                dictServerProfitInfo = Object.fromEntries(JSON.parse(analyzeHackResult).map(s => [s.hostname, s]));
+        } catch {
+            log(ns, "WARNING: Could not run analyze-hack.js (insufficient RAM?). Using fallback target ordering by server max money.");
+        }
         // Double home reserved ram once we reach the configured threshold
         if (homeServer && homeServer.totalRam(true) >= options['double-reserve-threshold'])
             homeReservedRam = 2 * options['reserved-ram'];
