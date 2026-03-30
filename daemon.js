@@ -117,7 +117,12 @@ export async function main(ns) {
     // For timing reasons the delay between each step should be *close* 1/4th of this number, but there is some imprecision
     let cycleTimingDelay = 0; // (Set in command line args)
     let queueDelay = 0; // (Set in command line args) The delay that it can take for a script to start, used to pessimistically schedule things in advance
-    let maxBatches = 0; // (Set in command line args) The max number of batches this daemon will spool up to avoid running out of IRL ram (TODO: Stop wasting RAM by scheduling batches so far in advance. e.g. Grind XP while waiting for cycle start!)
+    let maxBatches = 0; // (Set in command line args) Legacy cap on batches - now used as an upper bound for drip scheduling
+    // JIT (drip) scheduling state: schedule one batch at a time per target, only when it's about to fire
+    let nextBatchTime = {}; // {serverName: number} -- timestamp when the next batch should start
+    let serverBatchCount = {}; // {serverName: number} -- running batch counter for discrimination args
+    let firstBatchEndTime = {}; // {serverName: number} -- when the first active batch completes (overlap guard)
+    let serverPerfSnapshot = {}; // {serverName: snapshot} -- cached performance metrics per target
     let maxTargets = 0; // (Set in command line args) Initial value, will grow if there is an abundance of RAM
     let maxPreppingAtMaxTargets = 3; // The max servers we can prep when we're at our current max targets and have spare RAM
     // Allows some home ram to be reserved for ad-hoc terminal script running and when home is explicitly set as the "preferred server" for starting a helper
@@ -813,8 +818,9 @@ export async function main(ns) {
                             cantHackButPrepped.push(server);
                         else if (await server.isPrepping())
                             cantHackButPrepping.push(server);
-                    } else if (await server.isTargeting()) { // Note servers already being targeted from a prior loop
-                        targeting.push(server); // TODO: Switch to continuously queing batches in the seconds leading up instead of far in advance with large delays
+                    } else if (await server.isTargeting() || (server.name in nextBatchTime && server.isPrepped())) { // Servers actively being targeted -- continue drip scheduling
+                        await dripSchedule(ns, server); // Schedule next batch(es) if within the scheduling window
+                        targeting.push(server);
                     } else if (await server.isPrepping()) { // Note servers already being prepped from a prior loop
                         prepping.push(server);
                     } else if (isWorkCapped() || xpOnly) { // Various conditions for which we'll postpone any additional work on servers
@@ -823,6 +829,7 @@ export async function main(ns) {
                         else
                             skipped.push(server);
                     } else if (!hackOnly && true == await prepServer(ns, server)) { // Returns true if prepping, false if prepping failed, null if prepped
+                        if (server.name in nextBatchTime) clearDripState(server.name); // Clear JIT state if server regressed from targeting to prepping
                         if (server.previouslyPrepped)
                             log(ns, `WARNING ${server.prepRegressions++}: Server was prepped, but now at security: ${formatNumber(server.getSecurity())} ` +
                                 `(min ${formatNumber(server.getMinSecurity())}) money: ${formatMoney(server.getMoney(), 3)} (max ${formatMoney(server.getMaxMoney(), 3)}). ` +
@@ -835,10 +842,7 @@ export async function main(ns) {
                         server.previouslyPrepped = true;
                         preppedButNotTargeting.push(server);
                     } else { // Otherwise, server is prepped at min security & max money and ready to target
-                        let performanceSnapshot = optimizePerformanceMetrics(ns, server); // Adjust the percentage to steal for optimal scheduling
-                        if (server.actualPercentageToSteal() === 0) { // Not enough RAM for even one hack thread of this next-best target.
-                            failed.push(server);
-                        } else if (true == await performScheduling(ns, server, performanceSnapshot)) { // once conditions are optimal, fire barrage after barrage of cycles in a schedule
+                        if (true == await dripSchedule(ns, server)) { // Start drip scheduling (initializes state + schedules first batch)
                             targeting.push(server);
                         } else {
                             log(ns, 'Targeting failed for "' + server.name + '" (RAM Utilization: ' + (getTotalNetworkUtilization() * 100).toFixed(2) + '%)');
@@ -1404,56 +1408,87 @@ export async function main(ns) {
     }
 
     /** @param {NS} ns **/
-    async function performScheduling(ns, currentTarget, snapshot) {
+    /** Schedule a single HWGW batch for the given target at the specified start time.
+     * @returns {boolean} true if the batch was successfully scheduled, false on failure (e.g., out of RAM) */
+    async function scheduleSingleBatch(ns, currentTarget, batchStartTime, batchNumber) {
         const start = Date.now();
-        const scheduledTasks = [];
-        const maxCycles = Math.min(snapshot.optimalPacedCycles, snapshot.maxCompleteCycles);
-        if (!snapshot) return;
-        if (maxCycles === 0)
-            return log(ns, `WARNING: Attempt to schedule ${getTargetSummary(currentTarget)} returned 0 max cycles? ${JSON.stringify(snapshot)}`, false, 'warning');
         if (currentTarget.getHackThreadsNeeded() === 0)
-            return log(ns, `WARNING: Attempted to schedule empty cycle ${maxCycles} x ${getTargetSummary(currentTarget)}? ${JSON.stringify(snapshot)}`, false, 'warning');
-        let firstEnding = null, lastStart = null, lastBatch = 0, cyclesScheduled = 0;
-        while (cyclesScheduled < maxCycles) {
-            const newBatchStart = new Date((cyclesScheduled === 0) ? Date.now() + queueDelay : lastBatch.getTime() + cycleTimingDelay);
-            lastBatch = new Date(newBatchStart.getTime());
-            const batchTiming = getScheduleTiming(newBatchStart, currentTarget);
-            if (verbose && runOnce) logSchedule(ns, batchTiming, currentTarget); // Special log for troubleshooting batches
-            const newBatch = getScheduleObject(ns, batchTiming, currentTarget, scheduledTasks.length);
-            if (firstEnding === null) { // Can't start anything after this first hack completes (until back at min security), or we risk throwing off timing
-                firstEnding = new Date(newBatch.hackEnd.valueOf());
-            }
-            if (lastStart === null || lastStart < newBatch.firstFire) {
-                lastStart = new Date(newBatch.lastFire.valueOf());
-            }
-            if (cyclesScheduled > 0 && lastStart >= firstEnding) {
-                if (verbose) log(ns, `Had to stop scheduling at ${cyclesScheduled} of ${maxCycles} desired cycles (lastStart: ${lastStart} >= firstEnding: ${firstEnding}) ${JSON.stringify(snapshot)}`);
-                break;
-            }
-            scheduledTasks.push(newBatch);
-            cyclesScheduled++;
-        }
+            return log(ns, `WARNING: Attempted to schedule empty batch for ${getTargetSummary(currentTarget)}?`, false, 'warning');
+        const batchTiming = getScheduleTiming(new Date(batchStartTime), currentTarget);
+        if (verbose && runOnce) logSchedule(ns, batchTiming, currentTarget);
+        const schedObj = getScheduleObject(ns, batchTiming, currentTarget, batchNumber);
 
-        for (const schedObj of scheduledTasks) {
-            for (const schedItem of schedObj.scheduleItems) {
-                const discriminationArg = `Batch ${schedObj.batchNumber}-${schedItem.description}`;
-                // Args spec: [0: Target, 1: DesiredStartTime (used to delay tool start), 2: ExpectedEndTime (informational), 3: Duration (informational), 4: DoStockManipulation, 5: DisableWarnings]
-                const args = [currentTarget.name, schedItem.start.getTime(), schedItem.end - schedItem.start, discriminationArg];
-                args.push(...getFlagsArgs(schedItem.toolShortName, currentTarget.name));
-                if (options.i && currentTerminalServer?.name == currentTarget.name && schedItem.toolShortName == "hack")
-                    schedItem.toolShortName = "manualhack";
-                const result = await arbitraryExecution(ns, getTool(schedItem.toolShortName), schedItem.threadsNeeded, args)
-                if (result == false) { // If execution fails, we have probably run out of ram.
-                    log(ns, `WARNING: Scheduling failed for ${getTargetSummary(currentTarget)} ${discriminationArg} of ${cyclesScheduled} Took: ${Date.now() - start}ms`, false, 'warning');
-                    currentTarget.previousCycle = `INCOMPLETE. Tried: ${cyclesScheduled} x ${getTargetSummary(currentTarget)}`;
-                    return false;
-                }
+        for (const schedItem of schedObj.scheduleItems) {
+            const discriminationArg = `Batch ${schedObj.batchNumber}-${schedItem.description}`;
+            const args = [currentTarget.name, schedItem.start.getTime(), schedItem.end - schedItem.start, discriminationArg];
+            args.push(...getFlagsArgs(schedItem.toolShortName, currentTarget.name));
+            if (options.i && currentTerminalServer?.name == currentTarget.name && schedItem.toolShortName == "hack")
+                schedItem.toolShortName = "manualhack";
+            const result = await arbitraryExecution(ns, getTool(schedItem.toolShortName), schedItem.threadsNeeded, args)
+            if (result == false) {
+                log(ns, `WARNING: Scheduling failed for ${getTargetSummary(currentTarget)} ${discriminationArg} Took: ${Date.now() - start}ms`, false, 'warning');
+                currentTarget.previousCycle = `INCOMPLETE batch ${batchNumber} for ${getTargetSummary(currentTarget)}`;
+                return false;
             }
         }
         if (verbose)
-            log(ns, `Scheduled ${cyclesScheduled} x ${getTargetSummary(currentTarget)} Took: ${Date.now() - start}ms`);
-        currentTarget.previousCycle = `${cyclesScheduled} x ${getTargetSummary(currentTarget)}`
+            log(ns, `Scheduled batch ${batchNumber} for ${getTargetSummary(currentTarget)} Took: ${Date.now() - start}ms`);
+        // Track first batch end time for overlap protection
+        if (!(currentTarget.name in firstBatchEndTime))
+            firstBatchEndTime[currentTarget.name] = schedObj.hackEnd.getTime();
         return true;
+    }
+
+    /** Drip-schedule batches for a target: schedule batches one at a time, only when they're about to fire.
+     * Called each main loop tick for each server that is targeting.
+     * @returns {boolean} true if at least one batch was scheduled or target is actively being worked */
+    async function dripSchedule(ns, currentTarget) {
+        const now = Date.now();
+        const schedulingWindow = Math.max(5000, cycleTimingDelay * 2);
+        const serverName = currentTarget.name;
+
+        // Initialize drip state for new targets
+        if (!(serverName in nextBatchTime)) {
+            const snapshot = optimizePerformanceMetrics(ns, currentTarget);
+            if (!snapshot || currentTarget.actualPercentageToSteal() === 0) return false;
+            serverPerfSnapshot[serverName] = snapshot;
+            nextBatchTime[serverName] = now + queueDelay;
+            serverBatchCount[serverName] = 0;
+            delete firstBatchEndTime[serverName];
+            if (verbose) log(ns, `JIT: Initialized drip scheduling for ${getTargetSummary(currentTarget)}`);
+        }
+
+        // Schedule batches that fall within the scheduling window (cap at 5 per tick to avoid lag)
+        let batchesThisTick = 0;
+        while (nextBatchTime[serverName] <= now + schedulingWindow && batchesThisTick < 5) {
+            // Overlap protection: don't schedule if the new batch's fire time would be after the first batch completes
+            if (serverBatchCount[serverName] > 0 && serverName in firstBatchEndTime) {
+                const batchTiming = getScheduleTiming(new Date(nextBatchTime[serverName]), currentTarget);
+                if (batchTiming.lastFire.getTime() >= firstBatchEndTime[serverName]) {
+                    // First batch cycle is full -- clear state so next cycle can start fresh when scripts complete
+                    if (verbose) log(ns, `JIT: Batch window full for ${serverName} (${serverBatchCount[serverName]} batches). Waiting for cycle to complete.`);
+                    break;
+                }
+            }
+            // Cap total batches per cycle at maxBatches
+            if (serverBatchCount[serverName] >= maxBatches) break;
+
+            const success = await scheduleSingleBatch(ns, currentTarget, nextBatchTime[serverName], serverBatchCount[serverName]);
+            if (!success) break; // Out of RAM or other failure -- retry next tick
+            serverBatchCount[serverName]++;
+            nextBatchTime[serverName] += cycleTimingDelay;
+            batchesThisTick++;
+        }
+        currentTarget.previousCycle = `${serverBatchCount[serverName]} batches (drip) for ${getTargetSummary(currentTarget)}`;
+        return true;
+    }
+
+    /** Clear drip scheduling state for a server (e.g., when it becomes unprepped or is no longer targeted) */
+    function clearDripState(serverName) {
+        delete nextBatchTime[serverName];
+        delete serverBatchCount[serverName];
+        delete firstBatchEndTime[serverName];
+        delete serverPerfSnapshot[serverName];
     }
 
     /** Produces a special log for troubleshooting cycle schedules */
