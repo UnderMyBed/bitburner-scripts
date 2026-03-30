@@ -1073,6 +1073,7 @@ export async function main(ns) {
      * @param {NS} ns
      * @returns {bool} true if the player is grafting, false otherwise. */
     async function checkIfGrafting(ns) {
+        if (!(4 in unlockedSFs)) return false; // Can't check without SF4, and can't be grafting without it either
         let currentWork = (/**@returns{Task|null}*/() => null)();
         currentWork = await getNsDataThroughFile(ns, 'ns.singularity.getCurrentWork()');
         // Never interrupt grafting
