@@ -97,7 +97,7 @@ export async function main(ns) {
                 const batchRamCost = hackCost * hacks_per_cycle + growCost * grows_per_cycle;
                 cappedGainRate = Math.min(theoreticalGainRate, hackProfit / Math.max(1, batchRamCost / 1000));
                 ns.print(`At hack level ${hackLevel} and steal ${(hack_percent * 100).toPrecision(3)}%: ` +
-                    `Theoretical ${formatMoney(theoreticalGainRate)}, Limit: ${formatMoney(hackProfit / ram_total)}, Exp: ${expRate.toPrecision(3)}, ` +
+                    `Theoretical ${formatMoney(theoreticalGainRate)}, Limit: ${formatMoney(cappedGainRate)}, Exp: ${expRate.toPrecision(3)}, ` +
                     `Hack Chance: ${(ns.formulas.hacking.hackChance(server, player) * 100).toPrecision(3)}% (${server.hostname})`);
             }
             catch { // Formulas API unavailable?               

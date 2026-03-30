@@ -122,7 +122,6 @@ export async function main(ns) {
     let nextBatchTime = {}; // {serverName: number} -- timestamp when the next batch should start
     let serverBatchCount = {}; // {serverName: number} -- running batch counter for discrimination args
     let firstBatchEndTime = {}; // {serverName: number} -- when the first active batch completes (overlap guard)
-    let serverPerfSnapshot = {}; // {serverName: snapshot} -- cached performance metrics per target
     let maxTargets = 0; // (Set in command line args) Initial value, will grow if there is an abundance of RAM
     let maxPreppingAtMaxTargets = 3; // The max servers we can prep when we're at our current max targets and have spare RAM
     // Allows some home ram to be reserved for ad-hoc terminal script running and when home is explicitly set as the "preferred server" for starting a helper
@@ -1442,30 +1441,39 @@ export async function main(ns) {
     /** Drip-schedule batches for a target: schedule batches one at a time, only when they're about to fire.
      * Called each main loop tick for each server that is targeting.
      * @returns {boolean} true if at least one batch was scheduled or target is actively being worked */
+    const maxBatchesPerTick = 5; // Cap batches scheduled per target per tick to avoid lag
+
     async function dripSchedule(ns, currentTarget) {
         const now = Date.now();
+        // Schedule batches when they're within this window of firing. Uses max() so very fast targets still get scheduled ahead.
         const schedulingWindow = Math.max(5000, cycleTimingDelay * 2);
         const serverName = currentTarget.name;
 
-        // Initialize drip state for new targets
+        // Initialize drip state for new targets (also runs when starting a new cycle after the previous one completes)
         if (!(serverName in nextBatchTime)) {
+            // Re-optimize steal percentage each cycle to account for hack level / RAM changes
             const snapshot = optimizePerformanceMetrics(ns, currentTarget);
             if (!snapshot || currentTarget.actualPercentageToSteal() === 0) return false;
-            serverPerfSnapshot[serverName] = snapshot;
             nextBatchTime[serverName] = now + queueDelay;
             serverBatchCount[serverName] = 0;
             delete firstBatchEndTime[serverName];
             if (verbose) log(ns, `JIT: Initialized drip scheduling for ${getTargetSummary(currentTarget)}`);
         }
 
-        // Schedule batches that fall within the scheduling window (cap at 5 per tick to avoid lag)
+        // Schedule batches that fall within the scheduling window
         let batchesThisTick = 0;
-        while (nextBatchTime[serverName] <= now + schedulingWindow && batchesThisTick < 5) {
+        while (nextBatchTime[serverName] <= now + schedulingWindow && batchesThisTick < maxBatchesPerTick) {
             // Overlap protection: don't schedule if the new batch's fire time would be after the first batch completes
             if (serverBatchCount[serverName] > 0 && serverName in firstBatchEndTime) {
                 const batchTiming = getScheduleTiming(new Date(nextBatchTime[serverName]), currentTarget);
                 if (batchTiming.lastFire.getTime() >= firstBatchEndTime[serverName]) {
-                    // First batch cycle is full -- clear state so next cycle can start fresh when scripts complete
+                    // Batch window is full. Check if the previous cycle has completed (no scripts still running).
+                    if (!(await currentTarget.isTargeting())) {
+                        // Cycle done -- clear state and reinitialize for a fresh cycle
+                        if (verbose) log(ns, `JIT: Cycle completed for ${serverName} (${serverBatchCount[serverName]} batches). Starting new cycle.`);
+                        clearDripState(serverName);
+                        return await dripSchedule(ns, currentTarget); // Recurse to reinitialize
+                    }
                     if (verbose) log(ns, `JIT: Batch window full for ${serverName} (${serverBatchCount[serverName]} batches). Waiting for cycle to complete.`);
                     break;
                 }
@@ -1483,12 +1491,11 @@ export async function main(ns) {
         return true;
     }
 
-    /** Clear drip scheduling state for a server (e.g., when it becomes unprepped or is no longer targeted) */
+    /** Clear drip scheduling state for a server (e.g., when it becomes unprepped, cycle completes, or no longer targeted) */
     function clearDripState(serverName) {
         delete nextBatchTime[serverName];
         delete serverBatchCount[serverName];
         delete firstBatchEndTime[serverName];
-        delete serverPerfSnapshot[serverName];
     }
 
     /** Produces a special log for troubleshooting cycle schedules */

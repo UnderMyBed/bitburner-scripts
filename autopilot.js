@@ -329,10 +329,10 @@ export async function main(ns) {
             // and waiting until 75% wastes time earning money we don't need.
             if (totalWorth >= moneyReq && player.skills.hacking >= (2500 * 0.50))
                 prioritizeHackForDaedalus = true;
-            // Even without enough money, if we have enough augs and are close on hack level, start XP grinding
-            // so we're ready to rush as soon as money arrives (e.g., from stocks)
+            // Even without enough money, if we have enough augs and are making progress on money (>25% of req),
+            // start XP grinding so we're ready to rush as soon as money arrives (e.g., from stocks)
             else if (playerInstalledAugCount !== null && playerInstalledAugCount >= bitNodeMults.DaedalusAugsRequirement
-                && player.skills.hacking >= (2500 * 0.65))
+                && player.skills.hacking >= (2500 * 0.65) && totalWorth >= moneyReq * 0.25)
                 prioritizeHackForDaedalus = true;
             //log(ns, `total worth: ${formatMoney(totalWorth)} moneyReq: ${formatMoney(moneyReq)} prioritizeHackForDaedalus: ${prioritizeHackForDaedalus}`)
             return reservingMoneyForDaedalus = false; // Don't reserve money until hack level suffices
