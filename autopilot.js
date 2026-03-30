@@ -171,8 +171,17 @@ export async function main(ns) {
         homeRam = await getNsDataThroughFile(ns, `ns.getServerMaxRam(ns.args[0])`, null, ["home"]);
         try {
             if (!(4 in unlockedSFs)) {
-                log(ns, `WARNING: This script requires SF4 (singularity) functions to assess purchasable augmentations ascend automatically. ` +
-                    `Some functionality will be disabled and you'll have to manage working for factions, purchasing, and installing augmentations yourself.`, true);
+                log(ns, `WARNING: No SF4 (Singularity) -- autopilot cannot automate factions, augs, or installs. ` +
+                    `It will still manage daemon.js and stockmaster.js for you.` +
+                    (resetInfo.currentNode == 1 ? `\n\n  BN1 SPEEDRUN CHECKLIST (manual steps):` +
+                    `\n  1. Join factions: Accept every invite. Priority: CyberSec > NiteSec > The Black Hand > BitRunners` +
+                    `\n  2. Work for rep: Factions tab > Work > Hacking Contracts (fastest rep per faction)` +
+                    `\n  3. Buy augs from each faction, then install (resets progress but keeps augs)` +
+                    `\n  4. Repeat until 30 augs installed, hack level 2500, and $100B cash` +
+                    `\n  5. Join Daedalus > earn rep > buy "The Red Pill" > install > hack w0r1d_d43m0n` +
+                    `\n  Tip: Coding contracts (auto-solved by daemon) give faction rep!` +
+                    `\n  Tip: run casino.js in Aevum for a quick $10B boost` +
+                    `\n  Tip: run scan.js to see the network and find servers to backdoor` : ''), true);
                 installedAugmentations = [];
                 playerInstalledAugCount = null; // 'null' is treated as 'Unknown'
             } else {
@@ -264,7 +273,13 @@ export async function main(ns) {
         await maybeAcceptStaneksGift(ns, player);
         await checkOnRunningScripts(ns, player);
         await maybeDoCasino(ns, player);
-        await maybeInstallAugmentations(ns, player);
+        if (4 in unlockedSFs)
+            await maybeInstallAugmentations(ns, player);
+        else // Without SF4, remind the player what to do manually
+            setStatus(ns, `No SF4: autopilot is managing daemon/stocks. Manual actions needed:` +
+                `\n  - Join factions, work for rep, buy augs, install when ready` +
+                `\n  - Money: ${formatMoney(player.money)} | Hack: ${player.skills.hacking}` +
+                (resetInfo.currentNode == 1 ? `\n  - BN1 goal: 30 installed augs + hack 2500 + $100B -> Daedalus -> The Red Pill -> hack w0r1d_d43m0n` : ''));
         return shouldWeKeepRunning(ns); // Return false to shut down autopilot.js if we installed augs, or don't have enough home RAM
     }
 
