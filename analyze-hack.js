@@ -80,17 +80,22 @@ export async function main(ns) {
                 if (hackGain <= minHackGain)
                     ns.print(`WARN: hackGain is ${hackGain.toPrecision(3)}. Coercing it to the minimum value ${minHackGain} (${server.hostname})`);
                 server.estHackPercent = Math.max(minHackGain, Math.min(0.98,
-                    Math.min(ram_total * hackGain / hackCost, 1 - 1 / Math.exp(ram_total * growGain / growCost)))); // TODO: I think these might be off by a factor of 2x
+                    Math.min(ram_total * hackGain / hackCost, 1 - 1 / Math.exp(ram_total * growGain / growCost))));
                 if (use_est_hack_percent) hack_percent = server.estHackPercent;
-                const grows_per_cycle = -Math.log(1 - hack_percent) / growGain;
-                const hacks_per_cycle = hack_percent / hackGain;
-                const hackProfit = server.moneyMax * hack_percent * ns.formulas.hacking.hackChance(server, player);
+                // Use a uniform steal percentage (50%) across all servers for ranking purposes.
+                // Per-server estimated steal % penalizes profitable servers unfairly -- harder servers
+                // get lower estimates which skews the ranking. Using a uniform % levels the playing field.
+                const uniformHackPercent = 0.50;
+                const rankingPercent = use_est_hack_percent ? uniformHackPercent : hack_percent;
+                const grows_per_cycle = -Math.log(1 - rankingPercent) / growGain;
+                const hacks_per_cycle = rankingPercent / hackGain;
+                const hackProfit = server.moneyMax * rankingPercent * ns.formulas.hacking.hackChance(server, player);
                 // Compute the relative monetary gain
                 theoreticalGainRate = hackProfit / (growCost * grows_per_cycle + hackCost * hacks_per_cycle) * 1000 /* Convert per-millisecond rate to per-second */;
                 expRate = ns.formulas.hacking.hackExp(server, player) * (1 + 0.002 / 0.05) / (hackCost) * 1000;
-                // The practical cap on revenue is based on your hacking scripts. For my hacking scripts this is about 20% per second, adjust as needed
-                // No idea why we divide by ram_total - Basically ensures that as our available RAM gets larger, the sort order merely becomes "by server max money"
-                cappedGainRate = Math.min(theoreticalGainRate, hackProfit / ram_total);
+                // Cap the gain rate based on the RAM cost of a full batch at the ranking steal percentage
+                const batchRamCost = hackCost * hacks_per_cycle + growCost * grows_per_cycle;
+                cappedGainRate = Math.min(theoreticalGainRate, hackProfit / Math.max(1, batchRamCost / 1000));
                 ns.print(`At hack level ${hackLevel} and steal ${(hack_percent * 100).toPrecision(3)}%: ` +
                     `Theoretical ${formatMoney(theoreticalGainRate)}, Limit: ${formatMoney(hackProfit / ram_total)}, Exp: ${expRate.toPrecision(3)}, ` +
                     `Hack Chance: ${(ns.formulas.hacking.hackChance(server, player) * 100).toPrecision(3)}% (${server.hostname})`);
