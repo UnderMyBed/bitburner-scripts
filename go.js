@@ -13,10 +13,10 @@ const argsSchema = [
     ['cheats', true], // Use cheats if BN14.2+ available
     ['disable-cheats', false], // Disable cheats
     ['cheat-chance-threshold', 0.9], // Don't cheat if success chance below this
-    ['mcts-time-ms', 200], // Time budget per move for MCTS (milliseconds). Keep low to avoid lagging the game.
-    ['mcts-time-ms-endgame', 100], // Reduced time budget when few empty spaces remain
+    ['mcts-time-ms', 50], // Time budget per move for MCTS (ms). Low = fast throughput. Favor comes from captured nodes, not perfect play.
+    ['mcts-time-ms-endgame', 25], // Reduced time in endgame when few moves remain
     ['runOnce', false], // Play one game then exit
-    ['board-size', 13], // Board size for new games
+    ['board-size', 7], // Board size for new games. Smaller = faster games = more favor/hour. 5/7/9/13 supported.
 ];
 
 export function autocomplete(data, args) {
@@ -327,11 +327,14 @@ export async function main(ns) {
         }
     }
 
+    let opponentIndex = 0;
     function startNewGame() {
+        // Cycle through opponents in order (easy → hard) to build favor across all of them
         const pool = cheats ? opponentsWithMystery : opponents;
-        const opponent = pool[Math.floor(Math.random() * pool.length)];
+        const opponent = pool[opponentIndex % pool.length];
+        opponentIndex++;
         try { ns.go.resetBoardState(opponent, boardSize); }
-        catch { ns.go.resetBoardState(opponents[Math.floor(Math.random() * opponents.length)], boardSize); }
+        catch { ns.go.resetBoardState(opponents[0], boardSize); } // Fall back to easiest
         ns.print(`Starting new game vs ${opponent} on ${boardSize}x${boardSize}`);
     }
 
