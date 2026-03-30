@@ -406,7 +406,7 @@ export async function main(ns) {
             // Buy tor as soon as we can if we haven't already, and all the port crackers
             { interval: 25000, name: "/Tasks/tor-manager.js", shouldRun: () => 4 in dictSourceFiles && !allHostNames.includes("darkweb") },
             { interval: 26000, name: "/Tasks/program-manager.js", shouldRun: () => 4 in dictSourceFiles && ownedCracks.length != 5 },
-            { interval: 27000, name: "/Tasks/contractor.js", minRamReq: 14.2 }, // Periodically look for coding contracts that need solving
+            { interval: !(4 in dictSourceFiles) ? 15000 : 27000, name: "/Tasks/contractor.js", minRamReq: 14.2 }, // Periodically look for coding contracts (faster without SF4 since contracts = faction rep)
             // Buy every hacknet upgrade with up to 4h payoff if it is less than 10% of our current money or 8h if it is less than 1% of our current money.
             { interval: 28000, name: "hacknet-upgrade-manager.js", shouldRun: shouldUpgradeHacknet, args: () => ["-c", "--max-payoff-time", "4h", "--max-spend", getPlayerMoney(ns) * 0.1] },
             { interval: 28500, name: "hacknet-upgrade-manager.js", shouldRun: shouldUpgradeHacknet, args: () => ["-c", "--max-payoff-time", "8h", "--max-spend", getPlayerMoney(ns) * 0.01] },
@@ -743,13 +743,26 @@ export async function main(ns) {
 
                 if (!(4 in dictSourceFiles) && homeRam < 64) {
                     // Until the user buys the first home RAM upgrade, prioritize just one target, so that we see fast results.
-                    if (homeRam == 8) // Note: getAllServersByTargetOrder should be sorting by 
+                    if (homeRam == 8)
                         maxTargets = maxPreppingAtMaxTargets = 1;
-                    // Periodically provide a hint to buy more home RAM asap
-                    if (loops % 600 == 0)
-                        log(ns, `Reminder: Daemon.js can do a lot more if you have more Home RAM. Right now, you must buy this yourself.` +
-                            `\n  Head to the "City", visit [alpha ent.] (or other Tech store), and purchase at least 64 GB as soon as possible!` +
-                            `\n  Also be sure to purchase TOR and run "buy -a" from the terminal until you own all hack tools.`, true, 'info');
+                    // Periodically provide hints for manual actions needed without SF4
+                    if (loops % 600 == 0) {
+                        if (bitNodeN == 1 && loops <= 600) // First-time BN1 speedrun guide
+                            log(ns, `BN1 SPEEDRUN GUIDE (no SF4 -- manual actions required):` +
+                                `\n  1. Buy Home RAM: City > [alpha ent.] > buy max RAM (64GB+ ASAP)` +
+                                `\n  2. Buy TOR + tools: City > [alpha ent.] > TOR, then terminal: buy -a` +
+                                `\n  3. Earn money: daemon.js handles this. Casino: travel to Aevum, run casino.js for 10B` +
+                                `\n  4. Join factions: Accept every invite. Focus CyberSec > NiteSec > The Black Hand > BitRunners` +
+                                `\n  5. Work for rep: Factions tab > Work > Hacking Contracts (fastest rep)` +
+                                `\n  6. Buy augs: Need 30 installed for Daedalus. Buy from every faction, install often` +
+                                `\n  7. Daedalus: Once 30 augs + 2500 hack + $100B -> join Daedalus, earn rep, buy The Red Pill` +
+                                `\n  8. Win: Once TRP installed, hack w0r1d_d43m0n (run scan.js to find it)` +
+                                `\n  Coding contracts (auto-solved) give faction rep -- very valuable without SF4!`, true, 'info');
+                        else
+                            log(ns, `Reminder: Daemon.js can do a lot more if you have more Home RAM. Right now, you must buy this yourself.` +
+                                `\n  Head to the "City", visit [alpha ent.] (or other Tech store), and purchase at least 64 GB as soon as possible!` +
+                                `\n  Also be sure to purchase TOR and run "buy -a" from the terminal until you own all hack tools.`, true, 'info');
+                    }
                 }
 
                 if (loops % 60 == 0) { // For more expensive updates, only do these every so often

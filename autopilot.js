@@ -85,6 +85,7 @@ export async function main(ns) {
     // Per-BitNode strategy overrides. Keys are BN numbers. Values override autopilot behavior.
     // Missing keys use default behavior. Each field is optional.
     const bnStrategies = {
+        1:  { freshStart: true }, // First BN -- no source files, mostly manual. Optimize daemon for early hacking.
         2:  { rushGangs: true, workFocus: '--crime-focus' }, // Rush karma to unlock gangs ASAP
         6:  { preferBladeburnerWin: true }, // Bladeburner-focused BN -- try to win via Operation Daedalus
         7:  { preferBladeburnerWin: true }, // Bladeburner API BN
