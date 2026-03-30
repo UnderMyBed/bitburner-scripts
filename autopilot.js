@@ -789,9 +789,10 @@ export async function main(ns) {
             return log_once(ns, `INFO: Waiting until we have ${formatMoney(300000)} to travel to Aevum and run casino.js`);
 
         // Run casino.js (and expect this script to get killed in the process)
-        // Make sure "work-for-factions.js" is dead first, lest it steal focus and break the casino script before it has a chance to kill all scripts.
+        // Kill scripts that could steal focus or drain money (studying, training, working)
         await killScript(ns, 'work-for-factions.js');
-        await killScript(ns, 'daemon.js'); // We also have to kill daemon which can make us study.
+        await killScript(ns, 'daemon.js'); // Daemon can make us study
+        await killScript(ns, 'sleeve.js'); // Sleeves can train at gym, costing money
         // Kill any action, in case we are studying or working out, as it might steal focus or funds before we can bet it at the casino.
         if (4 in unlockedSFs) // No big deal if we can't, casino.js has logic to find the stop button and click it.
             _ = await getNsDataThroughFile(ns, `ns.singularity.stopAction()`);
@@ -800,8 +801,14 @@ export async function main(ns) {
         if (pid) {
             await waitForProcessToComplete(ns, pid);
             await ns.sleep(10000); // Give time for this script to be killed if the game is being restarted by casino.js
-            // Otherwise, something went wrong
-            log(ns, `ERROR: Something went wrong. casino.js was run, but we haven't been killed. It must have run into a problem...`)
+            // Otherwise, something went wrong -- set ranCasino to prevent infinite retry loop
+            ranCasino = true;
+            log(ns, `ERROR: Something went wrong. casino.js was run, but we haven't been killed. It must have run into a problem. ` +
+                `Will not retry casino automatically. Run casino.js manually if needed.`)
+        } else {
+            // Failed to even launch casino.js (e.g., insufficient RAM) -- don't retry endlessly
+            ranCasino = true;
+            log(ns, `ERROR: Failed to launch casino.js. Will not retry automatically.`);
         }
     }
 
