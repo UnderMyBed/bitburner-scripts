@@ -287,6 +287,9 @@ async function optimizeGangCrime(ns, myGangInfo) {
         myGangInfo.respect > 200 ? -0.01 * myGangInfo.wantedLevel /* Recover from wanted penalty */ :
         currentWantedPenalty < -0.9 * wantedPenaltyThreshold && myGangInfo.wantedLevel >= (1.1 + myGangInfo.respect / 10000) ? 0 /* Sustain */ :
             Math.max(myGangInfo.respectGainRate / 1000, myGangInfo.wantedLevel / 10) /* Allow wanted to increase at a manageable rate */;
+    // If wanted level is at the minimum (1.0), be very generous with tolerance -- VJ is pointless at the floor
+    if (myGangInfo.wantedLevel <= 1.01)
+        wantedGainTolerance = Math.max(wantedGainTolerance, myGangInfo.respectGainRate / 100);
     const playerData = await getNsDataThroughFile(ns, 'ns.getPlayer()');
     // Find out how much reputation we need, without SF4, we estimate gang faction rep based on current gang rep
     let factionRep = -1;
@@ -370,6 +373,8 @@ async function optimizeGangCrime(ns, myGangInfo) {
 /** @param {NS} ns
  * Logic to reduce crime tiers when we're generating a wanted level **/
 async function fixWantedGainRate(ns, myGangInfo, wantedGainTolerance = 0) {
+    // If wanted level is already at the minimum floor, no point assigning members to VJ
+    if (myGangInfo.wantedLevel <= 1.01) return;
     // TODO: steal actual wanted level calcs and strategically pick the member(s) who can bridge the gap while losing the least rep/sec
     let lastWantedLevelGainRate = myGangInfo.wantedLevelGainRate;
     log(ns, `WARNING: Generating wanted levels (${lastWantedLevelGainRate.toPrecision(3)}/sec > ${wantedGainTolerance.toPrecision(3)}/sec), temporarily assigning random members to Vigilante Justice...`, false, 'warning');
