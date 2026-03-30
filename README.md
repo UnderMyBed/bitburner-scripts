@@ -3,7 +3,7 @@ Welcome to Insight's Bitburner scripts - one of the Bitburner scripts of all tim
 
 # Downloading the whole repository
 
-If you manually `nano git-pull.js` from the terminal and copy the [contents of that script](https://raw.githubusercontent.com/alainbryden/bitburner-scripts/main/git-pull.js), you should be able to run it once and download the rest of the files I use. Early-game, many will be useless because they are only enabled by late-game features, but they shouldn't give you too many problems just being there.
+If you manually `nano git-pull.js` from the terminal and copy the [contents of that script](https://raw.githubusercontent.com/UnderMyBed/bitburner-scripts/main/git-pull.js), you should be able to run it once and download the rest of the files I use. Early-game, many will be useless because they are only enabled by late-game features, but they shouldn't give you too many problems just being there.
 
 # Running scripts
 
@@ -20,7 +20,7 @@ Run scripts with the `--help` flag to get a list of their arguments, default val
 ![image](https://user-images.githubusercontent.com/2285037/166085058-952b0805-cf4e-4548-8829-1e1ebeb5428b.png)
 You will also see an error-version of this dialog if you make a mistake in how you run the script.
 
-If you have personal preference and wish to "permanently" change the configuration of one of my scripts, you can do so without sacrificing your ability to "git-pull.js" the latest - simply [create a custom `config.txt`](https://github.com/alainbryden/bitburner-scripts/edit/main/README.md#config-files) file for the script.
+If you have personal preference and wish to "permanently" change the configuration of one of my scripts, you can do so without sacrificing your ability to "git-pull.js" the latest - simply [create a custom `config.txt`](https://github.com/UnderMyBed/bitburner-scripts/edit/main/README.md#config-files) file for the script.
 
 _Note:_ `autopilot.js` (and in turn, `daemon.js`) will already run many instances of scripts with default arguments. If you wish to run them with special arguments, you must either kill the default version or simply run scripts with your desired arguments **before** starting daemon.js. Daemon.js will only start scripts that are not already running (regardless of the arguments of the currently running instance.)
 
