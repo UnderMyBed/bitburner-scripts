@@ -21,6 +21,7 @@ const argsSchema = [
     ['logtime', false], // Logs time time it takes for each player to take their move
     ['runOnce', false], // Will only play one game if enabled
     ['silent', false], // (Obsolete) This script used to automatically tail. Now if you want to do this, call with --tail like normal.
+    ['board-size', 9], // Board size for new games. Smaller = faster games = more favor/hour. 5/7/9/13 supported.
 ];
 
 export function autocomplete(data, args) {
@@ -96,6 +97,7 @@ export async function main(ns) {
 
         logtime = runOptions.logtime;
         runOnce = runOptions.runOnce;
+        const boardSize = runOptions['board-size'];
 
         const sourceFiles = await getActiveSourceFiles(ns, true);
         // Enable cheats if we have SF14.2 or higher (unless the user disabled cheats).
@@ -358,11 +360,16 @@ export async function main(ns) {
     /** @param {NS} ns
      * @param {{ type:"move"|"pass"|"gameOver"; x:number; y:number;}} gameInfo
      */
+    let opponentIndex = 0;
     function checkNewGame(ns, gameInfo) {
         if (gameInfo.type === "gameOver") {
             if (runOnce) ns.exit()
-            try { ns.go.resetBoardState(opponent2[Math.floor(Math.random() * opponent2.length)], 13) }
-            catch { ns.go.resetBoardState(opponent[Math.floor(Math.random() * opponent.length)], 13) }
+            // Cycle opponents in order to build favor evenly across all factions
+            const pool = cheats ? opponent2 : opponent;
+            const nextOpponent = pool[opponentIndex % pool.length];
+            opponentIndex++;
+            try { ns.go.resetBoardState(nextOpponent, boardSize) }
+            catch { ns.go.resetBoardState(opponent[0], boardSize) }
             turn = 0
             ns.clearLog()
         }
