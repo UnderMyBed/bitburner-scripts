@@ -156,12 +156,11 @@ export async function main(ns) {
      * @returns {Promise<{type: "move" | "pass" | "gameOver";x: number;y: number;}>} */
     async function go_makeMove(ns, x, y) {
         return await ns.go.makeMove(x, y);
-        // Note to self - I decided against ram-dodging this request because the "await" actually blocks for a long time.
-        // This program spends 99% of its time waiting for makeMove to complete (which is time-throttled by the game)
-        // As such, this script permantly eats 4GB of the "temporary memory reserve" left by Daemon, which
-        // throws off other scripts which need to "burst" RAM utilization for only an instant.
-        // Better to just consume this 4GB predictably as part of this script.
-        //return await getNsDataThroughFile(ns, `await ns.go.makeMove(...ns.args)`, null, [x, y]);
+    }
+    /** Safe pass that handles game-over gracefully */
+    async function go_passTurn(ns) {
+        try { return await ns.go.passTurn(); }
+        catch { return { type: "gameOver", x: null, y: null }; }
     }
 
     /** @param {NS} ns */
@@ -225,7 +224,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 1:  //The Black Hand
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -244,7 +243,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 2: //Mr. Mustacio - Slum Snakes
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -263,7 +262,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 3: //Daedalus
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -282,7 +281,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 4: //Tetrads
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -301,7 +300,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat(),)) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 5: //Illum
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -319,7 +318,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                     case 6: //??????
                         if (results = await movePiece(ns, getRandomCounterLib())) break
@@ -338,7 +337,7 @@ export async function main(ns) {
                         if (results = await movePiece(ns, getRandomLibAttack())) break
                         if (results = await movePiece(ns, getRandomStrat())) break
                         ns.print("Turn Passed")
-                        results = await ns.go.passTurn()
+                        results = await go_passTurn(ns)
                         break
                 } //End of style switch
             } // end of turn >= 3
