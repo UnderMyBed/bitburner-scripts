@@ -10,8 +10,8 @@ const argsSchema = [ // The set of all command line arguments
     ['install-at-aug-count', 8], // Automatically install when we can afford this many new augmentations (with NF only counting as 1). Note: This number will automatically be increased by 1 for every level of SF11 you have (up to 3)
     ['install-at-aug-plus-nf-count', 12], // or... automatically install when we can afford this many augmentations including additional levels of Neuroflux.  Note: This number will automatically be increased by 1 for every level of SF11 you have (up to 3)
     ['install-for-augs', ["The Red Pill"]], // or... automatically install as soon as we can afford one of these augmentations
-    ['install-countdown', 5 * 60 * 1000], // If we're ready to install, wait this long first to see if more augs come online (we might just be gaining momentum)
-    ['time-before-boosting-best-hack-server', 15 * 60 * 1000], // Wait this long before picking our best hack-income server and spending hashes on boosting it
+    ['install-countdown', 90 * 1000], // If we're ready to install, wait this long first to see if more augs come online (we might just be gaining momentum)
+    ['time-before-boosting-best-hack-server', 5 * 60 * 1000], // Wait this long before picking our best hack-income server and spending hashes on boosting it
     ['reduced-aug-requirement-per-hour', 0.5], // For every hour since the last reset, require this many fewer augs to install.
     ['interval', 2000], // Wake up this often (milliseconds) to check on things
     ['interval-check-scripts', 10000], // Get a listing of all running processes on home this frequently
@@ -325,9 +325,14 @@ export async function main(ns) {
         if (player.skills.hacking < 2500) {
             // If we happen to already have enough money for daedalus and are only waiting on hack-level,
             // set a flag to switch daemon.js into --xp-only mode, to prioritize earning hack exp over money
-            // HEURISTIC (i.e. Hack): Only do this if we naturally get within 75% of the hack stat requirement,
-            //    otherwise, assume our hack gain rate is too low in this reset to make it all the way to 2500.
-            if (totalWorth >= moneyReq && player.skills.hacking >= (2500 * 0.75))
+            // Switch to XP-only at 50% of hack requirement -- XP mode is dramatically faster for leveling,
+            // and waiting until 75% wastes time earning money we don't need.
+            if (totalWorth >= moneyReq && player.skills.hacking >= (2500 * 0.50))
+                prioritizeHackForDaedalus = true;
+            // Even without enough money, if we have enough augs and are close on hack level, start XP grinding
+            // so we're ready to rush as soon as money arrives (e.g., from stocks)
+            else if (playerInstalledAugCount !== null && playerInstalledAugCount >= bitNodeMults.DaedalusAugsRequirement
+                && player.skills.hacking >= (2500 * 0.65))
                 prioritizeHackForDaedalus = true;
             //log(ns, `total worth: ${formatMoney(totalWorth)} moneyReq: ${formatMoney(moneyReq)} prioritizeHackForDaedalus: ${prioritizeHackForDaedalus}`)
             return reservingMoneyForDaedalus = false; // Don't reserve money until hack level suffices
@@ -1016,8 +1021,8 @@ export async function main(ns) {
                     setStatus(ns, `We're in Daedalus, so we won't install until we can afford to purchase "${augTRP}".`);
                     return true;
                 }
-            } else if (playerInstalledAugCount >= bitNodeMults.DaedalusAugsRequirement && player.skills.hacking >= (2500 * 0.9)) {
-                // If we meet the Daedalus aug count requirement and at least 90% of the required hack level, wait to earn the invite
+            } else if (playerInstalledAugCount >= bitNodeMults.DaedalusAugsRequirement && player.skills.hacking >= (2500 * 0.8)) {
+                // If we meet the Daedalus aug count requirement and at least 80% of the required hack level, wait to earn the invite
                 setStatus(ns, `Not installing because we're in BN8 and we have enough augs and ` + (player.skills.hacking < 2500 ? 'nearly ' : '')
                     + 'enough hack level to get invited to Daedalus once we hit $100b.');
                 return true;
