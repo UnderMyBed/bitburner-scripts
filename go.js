@@ -13,8 +13,8 @@ const argsSchema = [
     ['cheats', true], // Use cheats if BN14.2+ available
     ['disable-cheats', false], // Disable cheats
     ['cheat-chance-threshold', 0.9], // Don't cheat if success chance below this
-    ['mcts-time-ms', 2000], // Time budget per move for MCTS (milliseconds)
-    ['mcts-time-ms-endgame', 500], // Reduced time budget when few empty spaces remain
+    ['mcts-time-ms', 200], // Time budget per move for MCTS (milliseconds). Keep low to avoid lagging the game.
+    ['mcts-time-ms-endgame', 100], // Reduced time budget when few empty spaces remain
     ['runOnce', false], // Play one game then exit
     ['board-size', 13], // Board size for new games
 ];
@@ -323,6 +323,7 @@ export async function main(ns) {
                 results = await ns.go.passTurn();
             }
             checkGameOver(results);
+            await ns.sleep(1); // Yield to game loop to prevent lag
         }
     }
 
