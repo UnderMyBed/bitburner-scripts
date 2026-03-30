@@ -88,7 +88,7 @@ export async function main(ns) {
         2:  { rushGangs: true, workFocus: '--crime-focus' }, // Rush karma to unlock gangs ASAP
         6:  { preferBladeburnerWin: true }, // Bladeburner-focused BN -- try to win via Operation Daedalus
         7:  { preferBladeburnerWin: true }, // Bladeburner API BN
-        8:  { stockFocus: true, installAugCountOverride: 12, reducedAugReqOverride: -2 }, // Stocks are king; resist resetting
+        8:  { stockFocus: true, reducedAugReqOverride: -2 }, // Stocks are king; resist resetting
         9:  { hashFocus: true }, // Hacknet-focused; spend hashes aggressively
         10: { sleevesFocus: true, workFocus: '--crime-focus' }, // Sleeves + crime for karma to rush gang
         12: { adaptiveInstallCount: true }, // Successive BN12 levels need adaptive thresholds
@@ -616,11 +616,7 @@ export async function main(ns) {
                 // Log a special notice if we're going to be relaunching daemon.js for this reason
                 if (!existingDaemon || !(existingDaemon.args.includes("--looping-mode")))
                     daemonRelaunchMessage = `Hack level (${player.skills.hacking}) is >= ${hackThreshold} (--high-hack-threshold): Starting daemon.js in high-performance looping mode.`;
-            } else if (false) { // "tight" mode removed -- looping mode supersedes it at the same threshold
-                daemonArgs = ["--cycle-timing-delay", 40, "--queue-delay", 50, "--silent-misfires",
-                    "--recovery-thread-padding", Math.min(5.0, player.skills.hacking / hackThreshold)]; // Use more recovery thread padding as our hack level increases
-            }
-            else if (homeRam < 32) { // If we're in early BN 1.1 (i.e. with < 32GB home RAM), avoid squandering RAM
+            } else if (homeRam < 32) { // If we're in early BN 1.1 (i.e. with < 32GB home RAM), avoid squandering RAM
                 daemonArgs.push("--no-share", "--initial-max-targets", 1);
             } else { // XP-ONLY MODE: We can shift daemon.js to this when we want to prioritize earning hack exp rather than money
                 let useXpOnlyMode = prioritizeHackForDaedalus || prioritizeHackForWd ||

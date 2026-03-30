@@ -2130,13 +2130,13 @@ export async function main(ns) {
         if (!loopingMode) return;
         const strGrow = getTool("grow").name, strWeak = getTool("weak").name, strHack = getTool("hack").name;
         problematicProcesses.forEach(process => {
-            // The "loop mode" flag is at index [6] hack and grow scripts
+            // Loop mode flag: index [6] for hack and grow scripts (args: target, start, duration, desc, stockManip, silent, loop)
+            //                  index [5] for weaken scripts (args: target, start, duration, desc, silent, loop -- no stockManip)
             if (toolName == strGrow && 1 == (process.args.length > 6 ? process.args[6] : 0))
                 loopsByServer_Grow[process.args[0]] -= 1;
-            else if (toolName == strWeak && 1 == (process.args.length > 6 ? process.args[6] : 0))
+            else if (toolName == strWeak && 1 == (process.args.length > 5 ? process.args[5] : 0))
                 loopsByServer_Weaken[process.args[0]] -= 1;
-            // Weaken's "loop mode" arg is at index [5] TODO: This is annoying. Make args consistent
-            else if (toolName == strHack && 1 == (process.args.length > 5 ? process.args[5] : 0))
+            else if (toolName == strHack && 1 == (process.args.length > 6 ? process.args[6] : 0))
                 loopsHackThreadsByServer[process.args[0]] -= process.threads;
         });
     }
