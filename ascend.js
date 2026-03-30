@@ -37,6 +37,13 @@ export async function main(ns) {
     if (options['prioritize-augmentations'])
         log(ns, "INFO: The --prioritize-augmentations flag is deprecated, as this is now the default behaviour. Use --prioritize-home-ram to get back the old behaviour.")
 
+    // Refuse to run if the player is currently grafting an augmentation
+    try {
+        const currentWork = await getNsDataThroughFile(ns, 'ns.singularity.getCurrentWork()');
+        if (currentWork?.type == "GRAFTING")
+            return log(ns, "ERROR: Cannot ascend while grafting is in progress. Wait for grafting to complete.", true, 'error');
+    } catch { /* If we can't check, proceed -- better to try than silently do nothing */ }
+
     // Kill every script except this one, since it can interfere with out spending
     let pid = await runCommand(ns, `ns.ps().filter(s => s.filename != ns.args[0]).forEach(s => ns.kill(s.pid));`,
         '/Temp/kill-everything-but.js', [ns.getScriptName()]);

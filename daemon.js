@@ -490,6 +490,14 @@ export async function main(ns) {
         let startedStudying = false;
         try {
             if (4 in dictSourceFiles && options['initial-study-time'] > 0) {
+                // Don't interrupt grafting by starting to study
+                try {
+                    const currentWork = await getNsDataThroughFile(ns, 'ns.singularity.getCurrentWork()');
+                    if (currentWork?.type == "GRAFTING") {
+                        log(ns, `INFO: Skipping study kickstart because player is currently grafting.`);
+                        return;
+                    }
+                } catch { /* If we can't check, proceed cautiously */ }
                 // The safe/cheap thing to do is to study for free at the local university in our current town
                 // The most effective thing is to study Algorithms at ZB university in Aevum.
                 // Depending on our money, try to do the latter.

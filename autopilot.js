@@ -788,6 +788,10 @@ export async function main(ns) {
         if (player.city != "Aevum" && player.money < 300000)
             return log_once(ns, `INFO: Waiting until we have ${formatMoney(300000)} to travel to Aevum and run casino.js`);
 
+        // Don't interrupt grafting to run casino
+        if (await checkIfGrafting(ns))
+            return log_once(ns, `INFO: Deferring casino.js because player is currently grafting.`);
+
         // Run casino.js (and expect this script to get killed in the process)
         // Kill scripts that could steal focus or drain money (studying, training, working)
         await killScript(ns, 'work-for-factions.js');
