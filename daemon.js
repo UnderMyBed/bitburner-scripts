@@ -1826,6 +1826,12 @@ export async function main(ns) {
             // but in looping-mode, targets are "locked" to a host once started.
             let selectedTarget = targetsByExp[i];
             let selectedHost = loopingMode ? jobHostMappings[i] : jobHosts[i];
+            // Skip hosts that are still busy from a prior XP cycle (no available RAM) to avoid noisy "threads == 0" warnings
+            if (selectedHost && !loopingMode && selectedHost.ramAvailable() <= 0) {
+                if (verbose) log(ns, `INFO: Skipping XP target ${selectedTarget.name} - host ${selectedHost.name} has no free RAM (still busy from prior cycle).`);
+                etas.push(Number.MAX_SAFE_INTEGER);
+                continue;
+            }
             // If we aren't already configured for singleServerMode, switch to single-server mode if running out of hosts with high ram
             singleServerMode = singleServerMode || (i >= (jobHosts.length - 1 - singleServerLimit) || jobHosts[i + 1].totalRam() < 1000);
             // We can disable singleServerMode if this is the last target, since we don't need to reserve room for other targets
@@ -1896,8 +1902,8 @@ export async function main(ns) {
                     return eta ? (activeCycleTimeLeft > 0 ? activeCycleTimeLeft : 10 /* If we're overdue, sleep only 10 ms before checking again */) : expTime /* Have no ETA, sleep for expTime */;
                 }
                 threads = Math.floor(((allocatedServer == null ? expTool.getMaxThreads() : allocatedServer.ramAvailable() / expTool.cost) * percentOfFreeRamToConsume).toPrecision(14));
-                if (threads == 0)
-                    return log(ns, `${logPrefix} Cannot farm XP from ${server.name}, threads == 0 for ${getStrAllocatedServer()}`, false, toastLevel);
+                if (threads == 0) // If allocated server is simply busy, this is transient -- log as info, not warning
+                    return log(ns, `INFO: Cannot farm XP from ${server.name}, threads == 0 for ${getStrAllocatedServer()}`);
             }
 
             let growThreadsNeeded, weakenThreadsNeeded; // Used in advanced mode
