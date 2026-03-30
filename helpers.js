@@ -937,9 +937,9 @@ export function tail(ns, processId = undefined) {
     const tailedPids = fileContents.length > 1 ? JSON.parse(fileContents) : [];
     if (tailedPids.includes(processId))
         return //ns.tprint(`PID was previously moved ${processId}`);
-    // Size windows to 15% width, 15% height. Tile vertically on the right side, just left of the overview panel (~250px from right edge).
+    // Size windows to 30% width, 25% height. Tile vertically on the right side, just left of the overview panel (~250px from right edge).
     const [width, height] = ns.ui.windowSize();
-    const tailW = width * 0.15, tailH = height * 0.15;
+    const tailW = width * 0.30, tailH = height * 0.25;
     ns.ui.resizeTail(tailW, tailH, processId);
     const overviewWidth = 250; // Approximate width of the overview panel
     const x = width - tailW - overviewWidth;
