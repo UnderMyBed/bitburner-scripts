@@ -82,6 +82,20 @@ export async function main(ns) {
     const augTRP = "The Red Pill";
     const augStanek = `Stanek's Gift - Genesis`;
 
+    // Per-BitNode strategy overrides. Keys are BN numbers. Values override autopilot behavior.
+    // Missing keys use default behavior. Each field is optional.
+    const bnStrategies = {
+        2:  { rushGangs: true, workFocus: '--crime-focus' }, // Rush karma to unlock gangs ASAP
+        6:  { preferBladeburnerWin: true }, // Bladeburner-focused BN -- try to win via Operation Daedalus
+        7:  { preferBladeburnerWin: true }, // Bladeburner API BN
+        8:  { stockFocus: true, installAugCountOverride: 12, reducedAugReqOverride: -2 }, // Stocks are king; resist resetting
+        9:  { hashFocus: true }, // Hacknet-focused; spend hashes aggressively
+        10: { sleevesFocus: true, workFocus: '--crime-focus' }, // Sleeves + crime for karma to rush gang
+        12: { adaptiveInstallCount: true }, // Successive BN12 levels need adaptive thresholds
+    };
+    /** Get the strategy for the current BitNode, or empty object for defaults */
+    function getBnStrategy() { return bnStrategies[resetInfo.currentNode] ?? {}; }
+
     let options; // The options used at construction time
     let playerInGang = false, rushGang = false; // Tells us whether we're should be trying to work towards getting into a gang
     let playerInBladeburner = false; // Whether we've joined bladeburner
@@ -401,7 +415,8 @@ export async function main(ns) {
 
         // HEURISTIC: If we naturally get within 75% of the if w0r1d_d43m0n hack stat requirement,
         //    switch daemon.js to prioritize earning hack exp for the remainder of the BN
-        if (player.skills.hacking >= (wdHack * 0.75))
+        // Skip this in BNs that prefer bladeburner win -- don't sacrifice income for hack XP when BB is the goal
+        if (player.skills.hacking >= (wdHack * 0.75) && !getBnStrategy().preferBladeburnerWin)
             prioritizeHackForWd = !bnComplete;
 
         if (!bnComplete) return false; // No win conditions met
@@ -634,8 +649,8 @@ export async function main(ns) {
             }
             // Prevent daemon from starting "work-for-faction.js" since we now manage that script
             daemonArgs.push('--disable-script', getFilePath('work-for-factions.js'));
-            // In BN8, always run in a mode that prioritizes stock market manipulation
-            if (resetInfo.currentNode == 8) daemonArgs.push("--stock-manipulation-focus");
+            // In stock-focused BNs (e.g., BN8), prioritize stock market manipulation
+            if (getBnStrategy().stockFocus) daemonArgs.push("--stock-manipulation-focus");
             // Don't run the script to join and manage bladeburner if it is explicitly disabled
             if (options['disable-bladeburner']) daemonArgs.push('--disable-script', getFilePath('bladeburner.js'));
             // Relay the option to suppress tail windows
@@ -860,7 +875,10 @@ export async function main(ns) {
         // pefoming an ascention in a slow-going BN will let us lock in bonuses that will speed up overall pogression.
         let reducedAugReq = Math.floor(options['reduced-aug-requirement-per-hour'] * getTimeInAug() / 3.6E6);
         // In our first BN9 augmentation and in BN8, use this mechanic to actually *increase* aug count requirements.
-        if (inFirstBn9Aug || resetInfo.currentNode == 8) // In BN8, no reset bonuses are possible, and we'd lose our stock progress
+        const strategy = getBnStrategy();
+        if (strategy.reducedAugReqOverride !== undefined)
+            reducedAugReq = strategy.reducedAugReqOverride;
+        else if (inFirstBn9Aug)
             reducedAugReq = -2; // In our first BN9 augmentation, delay resetting as we'd lose our boosted hacknet server
         // Collect additional information about how many augmentations we need before it's worth resetting, based on the current configuration
         const sf11Level = dictOwnedSourceFiles[11] ?? 0; // SF11 makes augs scale cheaper, so for each level, require +1 augs
