@@ -1453,7 +1453,7 @@ export async function main(ns) {
                 schedItem.toolShortName = "manualhack";
             const result = await arbitraryExecution(ns, getTool(schedItem.toolShortName), schedItem.threadsNeeded, args)
             if (result == false) {
-                log(ns, `WARNING: Scheduling failed for ${getTargetSummary(currentTarget)} ${discriminationArg} Took: ${Date.now() - start}ms`, false, 'warning');
+                if (verbose) log(ns, `INFO: Scheduling failed for ${getTargetSummary(currentTarget)} ${discriminationArg} (RAM likely full)`);
                 currentTarget.previousCycle = `INCOMPLETE batch ${batchNumber} for ${getTargetSummary(currentTarget)}`;
                 return false;
             }
@@ -1469,7 +1469,7 @@ export async function main(ns) {
     /** Drip-schedule batches for a target: schedule batches one at a time, only when they're about to fire.
      * Called each main loop tick for each server that is targeting.
      * @returns {boolean} true if at least one batch was scheduled or target is actively being worked */
-    const maxBatchesPerTick = 5; // Cap batches scheduled per target per tick to avoid lag
+    const maxBatchesPerTick = 2; // Cap batches scheduled per target per tick to avoid lag and RAM spikes
 
     async function dripSchedule(ns, currentTarget) {
         const now = Date.now();
@@ -1510,7 +1510,11 @@ export async function main(ns) {
             if (serverBatchCount[serverName] >= maxBatches) break;
 
             const success = await scheduleSingleBatch(ns, currentTarget, nextBatchTime[serverName], serverBatchCount[serverName]);
-            if (!success) break; // Out of RAM or other failure -- retry next tick
+            if (!success) {
+                // Back off: don't retry for a few seconds to avoid spamming when RAM is tight
+                nextBatchTime[serverName] = Math.max(nextBatchTime[serverName], Date.now() + 3000);
+                break;
+            }
             serverBatchCount[serverName]++;
             nextBatchTime[serverName] += cycleTimingDelay;
             batchesThisTick++;
